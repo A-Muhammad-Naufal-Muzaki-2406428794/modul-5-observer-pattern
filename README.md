@@ -104,4 +104,33 @@ Karena *framework* web (seperti Rocket) menangani banyak HTTP Request secara ber
 
 #### Reflection Publisher-2
 
+**1. Alasan Memisahkan "Service" dan "Repository" dari "Model"**
+
+Meskipun pola dasar MVC (Model-View-Controller) menggabungkan penyimpanan data dan *business logic* ke dalam "Model", pendekatan arsitektur modern (seperti *Layered Architecture*) memisahkannya menjadi Model, Service, dan Repository dengan alasan utama **Single Responsibility Principle (SRP)** dan **Separation of Concerns**.
+
+* **Model:** Hanya bertanggung jawab sebagai representasi struktur data (DTO/Data Transfer Object). Model murni hanya berisi atribut, tanpa tahu bagaimana data itu disimpan atau diproses.
+* **Repository:** Hanya bertanggung jawab atas akses data ke memori atau *database* (CRUD). Jika suatu saat kita ingin mengganti `DashMap` dengan database sungguhan seperti PostgreSQL, kita hanya perlu mengubah kode di *Repository Layer* tanpa menyentuh *business logic*.
+* **Service:** Hanya bertanggung jawab atas *business logic* (aturan bisnis), seperti validasi, manipulasi teks (misal: `to_uppercase()`), atau memanggil fungsi dari *Repository*.
+
+Pemisahan ini membuat kode jauh lebih modular, lebih mudah dibaca, dan sangat mendukung *Test-Driven Development* (TDD) karena kita bisa melakukan *Mocking* pada Repository saat menguji Service.
+
+**2. Dampak Jika Hanya Menggunakan Model (Tanpa Layering)**
+
+Jika kita memaksakan semua logika (penyimpanan dan aturan bisnis) ke dalam Model, kita akan menciptakan **Spaghetti Code** dan **God Object Anti-Pattern**. Tingkat ketergantungan (*Coupling*) antar model akan menjadi sangat tinggi.
+
+Bayangkan interaksinya: Model `Notification` harus membuat notifikasi baru. Jika tidak ada *Service/Repository*, model `Notification` harus menginisialisasi atau mengakses struktur data `DashMap` milik model `Subscriber` secara langsung untuk mencari siapa saja yang berlangganan `Product` tertentu. 
+Akibatnya:
+* Jika struktur penyimpanan di `Subscriber` berubah, kode di model `Notification` akan ikut rusak (*break*).
+* Kode akan sangat sulit di-tes (karena *tight coupling*).
+* Kompleksitas di setiap model akan membengkak karena satu *struct* harus mengurus validasi, HTTP request, penyimpanan data, dan relasi dengan entitas lain secara bersamaan.
+
+**3. Pengalaman Menggunakan Postman**
+
+Postman sangat membantu dalam menguji API (*backend*) secara mandiri tanpa harus menunggu aplikasi *frontend* atau *receiver* selesai dibangun. Postman bertindak sebagai klien simulasi yang bisa mengirim berbagai jenis *HTTP Request* (GET, POST, PUT, DELETE) dengan *header* dan *body* JSON yang bisa disesuaikan.
+
+Beberapa fitur Postman yang menurut saya sangat menarik dan berguna untuk *Group Project* atau proyek *Software Engineering* ke depannya:
+* **Collections & Sharing:** Memungkinkan tim *backend* untuk mengelompokkan semua *endpoint* API dan membagikannya ke tim *frontend* sebagai dokumentasi interaktif (seperti *collection* yang disediakan di tutorial ini).
+* **Environment Variables:** Sangat berguna untuk menyimpan variabel seperti `{{base_url}}`. Kita bisa dengan mudah *switch* pengujian dari URL `localhost:8000` (saat *development*) ke URL *cloud/production* tanpa harus mengganti URL di setiap *request* satu per satu.
+* **Automated Testing & Scripts:** Postman memiliki tab "Tests" di mana kita bisa menulis *script* JavaScript sederhana untuk memvalidasi *response* secara otomatis (misalnya memastikan status *code* 200 OK atau mengecek apakah JSON balikan memiliki atribut yang benar), yang sangat membantu proses *Quality Assurance* (QA).
+
 #### Reflection Publisher-3
