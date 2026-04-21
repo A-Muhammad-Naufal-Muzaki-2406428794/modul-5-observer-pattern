@@ -78,6 +78,30 @@ This is the place for you to write reflections:
 
 #### Reflection Publisher-1
 
+**1. Kebutuhan Interface (Trait) pada Observer Pattern di BambangShop**
+
+Dalam kasus spesifik BambangShop saat ini, menggunakan **satu Model struct (`Subscriber`) saja sudah cukup**, dan kita tidak diwajibkan menggunakan Interface/Trait. 
+
+Pada buku *Head First Design Pattern*, Observer (Subscriber) dibuat sebagai *interface* dengan asumsi bahwa di dalam satu aplikasi terdapat berbagai jenis *class* dengan implementasi yang berbeda-beda yang ingin menjadi *subscriber*. Agar Publisher bisa memanggil fungsi `update()` ke semua kelas tersebut, dibutuhkan sebuah *interface* sebagai kontrak.
+
+Namun, dalam arsitektur BambangShop (Distributed Observer), *subscriber* kita bukanlah *class* internal, melainkan **aplikasi eksternal** yang berkomunikasi melalui HTTP Request. Selama aplikasi *receiver* mematuhi "kontrak" berupa struktur JSON (Model) dan URL *endpoint* (`/receive`) yang disepakati, Publisher tidak memedulikan detail implementasi aplikasi penerimanya. Oleh karena itu, mendefinisikan *payload* data (URL dan nama) ke dalam satu Model struct sudah sangat cukup.
+
+**2. Penggunaan `Vec` (List) vs `DashMap` (Map/Dictionary) untuk Data Unik**
+
+Menggunakan `DashMap` **jauh lebih efisien dan diperlukan** dibandingkan menggunakan `Vec` untuk kasus ini.
+
+Atribut `url` pada *Subscriber* bertindak sebagai *Primary Key* (unik). 
+* Jika menggunakan **`Vec` (List)**: Setiap kali kita ingin menghapus (*unsubscribe*) atau mengecek keberadaan seorang *subscriber*, program harus melakukan iterasi (Pencarian Linear dengan kompleksitas $O(N)$) satu per satu dari awal daftar. Ini akan menjadi *bottleneck* performa jika jumlah *subscriber* sudah mencapai ribuan.
+* Jika menggunakan **`DashMap`**: Pencarian, penambahan, dan penghapusan data berdasarkan *Key* (`url`) dapat dilakukan secara langsung dengan kompleksitas waktu rata-rata $O(1)$. Selain itu, `DashMap` mencegah duplikasi *key* secara otomatis karena sifat dasarnya sebagai *Map/Dictionary*.
+
+**3. `DashMap` vs Singleton Pattern untuk Keamanan Thread (Thread-Safety)**
+
+Kita **tetap membutuhkan `DashMap`** (atau struktur data *thread-safe* sejenisnya), meskipun kita sudah menerapkan konsep *Singleton* menggunakan `lazy_static`.
+
+*Singleton pattern* hanya menjamin bahwa **hanya ada satu instansiasi (objek) memori** dari daftar *subscribers* di seluruh siklus hidup aplikasi. Namun, *Singleton* **tidak** menjamin keamanan saat memori tersebut diakses atau dimodifikasi secara bersamaan (*Concurrency*).
+
+Karena *framework* web (seperti Rocket) menangani banyak HTTP Request secara bersamaan di *thread* yang berbeda (*multithreading*), ada kemungkinan Request A mencoba menambahkan *subscriber* ke dalam *Map*, sementara Request B pada saat yang sama mencoba menghapus data dari *Map* tersebut. Jika kita menggunakan `HashMap` biasa dipadukan dengan *Singleton*, program Rust akan rentan terhadap *Data Race* dan menyebabkan aplikasi *crash* (*Panic*). Oleh karena itu, kita sangat membutuhkan `DashMap` karena ia memiliki mekanisme *Lock/Mutex* internal yang memastikan proses baca-tulis antar *thread* terjadi secara aman dan terkoordinasi.
+
 #### Reflection Publisher-2
 
 #### Reflection Publisher-3
