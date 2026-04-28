@@ -1,7 +1,7 @@
 use rocket::response::status::Created;
 use rocket::serde::json::Json;
 
-use crate::Result;
+use bambangshop::Result;
 use crate::model::product::Product;
 use crate::service::product::ProductService;
 

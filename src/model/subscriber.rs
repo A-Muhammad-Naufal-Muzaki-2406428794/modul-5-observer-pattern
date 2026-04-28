@@ -20,7 +20,7 @@ impl Subscriber {
             .header("Content-Type", "JSON")
             .body(to_string(&payload).unwrap())
             .send().await.ok();
-        log::warn!("Sent {} notification of: [{}] {}, to: {}",
+        log::warn_!("Sent {} notification of: [{}] {}, to: {}",
             payload.status, payload.product_type, payload.product_title, self.url);
     }
 }
