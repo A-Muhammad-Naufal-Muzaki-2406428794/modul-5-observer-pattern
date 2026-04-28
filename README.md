@@ -134,3 +134,27 @@ Beberapa fitur Postman yang menurut saya sangat menarik dan berguna untuk *Group
 * **Automated Testing & Scripts:** Postman memiliki tab "Tests" di mana kita bisa menulis *script* JavaScript sederhana untuk memvalidasi *response* secara otomatis (misalnya memastikan status *code* 200 OK atau mengecek apakah JSON balikan memiliki atribut yang benar), yang sangat membantu proses *Quality Assurance* (QA).
 
 #### Reflection Publisher-3
+
+**1. Variasi Observer Pattern yang Digunakan (Push vs Pull)**
+
+Pada tutorial kasus BambangShop ini, kita menggunakan variasi **Push Model**. 
+Hal ini terlihat jelas pada fungsi `update` di Model Subscriber dan fungsi `notify` di NotificationService. Ketika terjadi sebuah *event* (misal: produk dibuat), aplikasi Publisher secara aktif "mendorong" (mengirimkan) keseluruhan data notifikasi (*payload* JSON) ke URL masing-masing Subscriber melalui HTTP POST request. Subscriber bersifat pasif dan hanya menunggu data tersebut datang.
+
+**2. Keuntungan dan Kerugian Jika Menggunakan Pull Model**
+
+Jika kita membalik logikanya dan menggunakan **Pull Model** (Publisher hanya memberi tahu "Ada perubahan produk lho!", lalu Subscriber harus melakukan HTTP GET untuk mengambil detail datanya), berikut adalah analisisnya:
+
+* **Keuntungan Pull Model:**
+  * **Ukuran Payload Lebih Kecil (Efisien bandwidth bagi Publisher):** Publisher tidak perlu memaketkan data yang besar ke semua subscriber. Ia hanya mengirimkan sinyal atau ID produk yang berubah.
+  * **Kendali di Tangan Subscriber:** Subscriber bisa memilih kapan ia ingin mengambil (pull) data tersebut, atau bahkan mengabaikannya jika sedang sibuk/down. Subscriber juga bisa memfilter spesifik data apa yang ingin dia *request*.
+* **Kerugian Pull Model:**
+  * **Latensi Lebih Tinggi:** Proses menjadi dua kali kerja (*round-trip*). Publisher mengirim sinyal -> Subscriber memproses sinyal -> Subscriber melakukan request HTTP ke Publisher -> Publisher membalas dengan data.
+  * **Beban Server Publisher Bisa Melonjak:** Jika Publisher mengumumkan pembaruan ke 1.000 subscriber, sepersekian detik kemudian server Publisher akan langsung dihantam oleh 1.000 request HTTP GET masuk secara bersamaan dari para subscriber yang berebut ingin mengambil data.
+
+**3. Dampak Jika Tidak Menggunakan Multi-threading dalam Proses Notifikasi**
+
+Jika kita menghapus `thread::spawn` dan melakukan pengiriman notifikasi secara sekuensial (sinkron/satu per satu) di *thread* utama, aplikasi akan mengalami **I/O Blocking** dan performanya akan sangat buruk.
+
+* **Proses Menjadi Sangat Lambat:** Mengirim HTTP request melalui internet membutuhkan waktu (misal 100ms hingga beberapa detik). Jika ada 1.000 subscriber, aplikasi akan menunggu request pertama selesai sebelum mengirim yang kedua. Ini bisa memakan waktu bermenit-menit hanya untuk menyelesaikan satu fungsi `notify()`.
+* **API Hang / Timeout:** Karena fungsi `notify()` dipanggil di dalam proses *create*, *delete*, atau *publish* produk, lambatnya pengiriman notifikasi akan menahan *return response* API. Akibatnya, saat Pak Bambang menekan tombol "Create Product" di aplikasi, layarnya akan *loading* terus-menerus (*freeze*) sampai semua notifikasi selesai dikirim.
+* **Satu Error Menghambat Semua:** Jika URL milik Subscriber pertama sudah mati atau lambat merespons (*timeout*), antrean pengiriman ke 999 Subscriber lainnya akan ikut tertahan.
